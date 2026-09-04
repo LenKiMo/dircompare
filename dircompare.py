@@ -371,7 +371,10 @@ def write_csv(prefix, res):
             w.writerow(["目录A相对路径", "目录B相对路径", "A大小", "B大小", "说明"]) if nm == "_names_diff.csv" else None
             w.writerow(["相对路径", "大小字节"]) if nm in ("_onlyA.csv", "_onlyB.csv") else None
             w.writerows(rows)
-    print("CSV 已写出：" + prefix + "_pairs.csv 等 4 个文件")
+    try:
+        print("CSV 已写出：" + prefix + "_pairs.csv 等 4 个文件")
+    except Exception:
+        pass  # 提示非关键；部分运行环境（如 pythonnet 接管 stdout）编码受限时忽略
 
 # ---------------- main ----------------
 def main():

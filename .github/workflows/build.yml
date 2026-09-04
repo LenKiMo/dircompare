@@ -9,6 +9,9 @@ on:
 permissions:
   contents: write               # softprops/action-gh-release 上传 assets 需要
 
+env:
+  PYTHONUTF8: "1"               # runner 默认 cp1252，强制 UTF-8 防中文输出崩溃
+
 jobs:
   test:
     name: 测试（内核一致性 + GUI 自检）

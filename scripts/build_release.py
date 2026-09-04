@@ -36,6 +36,7 @@ def run(cmd, **kw):
 
 def make_version_file(version, dest):
     """生成 PyInstaller --version-file 所需的 VSVersionInfo 文本。"""
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
     parts = version.split(".")
     while len(parts) < 4:
         parts.append("0")
@@ -72,8 +73,6 @@ def make_version_file(version, dest):
     with open(dest, "w", encoding="utf-8") as f:
         f.write(text)
     return dest
-
-
 def sha256_of(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:

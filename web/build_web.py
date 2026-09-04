@@ -3,7 +3,7 @@
 """将 web/engine.js 注入 dircompare_web.html.tmpl，生成自包含的 dircompare_web.html"""
 import os, sys
 
-HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # F:\CodeArea\DirCompare
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 项目根目录
 with open(os.path.join(HERE, "web", "engine.js"), encoding="utf-8") as f:
     engine = f.read()
 with open(os.path.join(HERE, "web", "dircompare_web.html.tmpl"), encoding="utf-8") as f:

@@ -181,7 +181,10 @@ def main():
             os.remove(st)
         subprocess.run([exe, "--selftest"], timeout=300)
         with open(st, encoding="utf-8") as f:
-            assert "SELFTEST PASS" in f.read(), f"{label} selftest 未通过"
+            content = f.read()
+            if "SELFTEST PASS" not in content:
+                print(f"[{label}] selftest 失败详情:\n{content}", flush=True)
+            assert "SELFTEST PASS" in content, f"{label} selftest 未通过"
         print(f"smoke OK: {label}", flush=True)
     assert smoke_test_cli(art_cli), "CLI smoke 失败"
     print("smoke OK: CLI", flush=True)

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>dircompare — 双目录内容比对</title>
+<style>
+  :root{--bg:#0f1117;--card:#171a23;--bd:#272d3d;--fg:#e6e8ef;--mut:#8b91a7;--acc:#4f8cff;--ok:#2ecc71;--warn:#f5b041;--err:#e74c3c}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.6 -apple-system,'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--fg);padding:18px 22px;user-select:text}
+  h1{margin:0 0 2px;font-size:20px;display:inline-block}
+  .tagline{color:var(--mut);font-size:12px;margin-left:10px}
+  .shield{display:inline-block;font-size:11px;color:var(--ok);border:1px solid #25603f;background:#10281b;border-radius:99px;padding:1px 10px;margin-left:8px;vertical-align:2px}
+  .dirs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 10px}
+  .card{background:var(--card);border:2px dashed #3a4258;border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s;min-height:74px}
+  .card:hover{border-color:var(--acc)}
+  .card.set{border-style:solid;border-color:#2c5b8f}
+  .card .lb{color:var(--acc);font-weight:700;font-size:13px;margin-bottom:4px}
+  .card .lb .cnt{color:var(--mut);font-weight:400;font-size:12px;margin-left:6px}
+  .card .pt{font-family:Consolas,monospace;font-size:12px;word-break:break-all;color:var(--fg);min-height:16px}
+  .card .pt.empty{color:#5a6278}
+  .bar{display:flex;align-items:center;gap:10px;margin:10px 0;flex-wrap:wrap}
+  .bar select,.bar button{background:#1b2133;border:1px solid var(--bd);color:var(--fg);border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer}
+  .bar select:focus,.bar button:focus{outline:none;border-color:var(--acc)}
+  #btnStart{background:linear-gradient(180deg,#2b6de0,#1f56b8);border-color:#2b6de0;font-weight:700}
+  .bar button:disabled{opacity:.4;cursor:not-allowed}
+  #status{color:var(--mut);font-size:12.5px}
+  #cancelWrap{display:none}
+  .progressWrap{margin:4px 0 2px;display:none}
+  .pwbar{height:7px;background:#1b2133;border-radius:99px;overflow:hidden}
+  .pwfill{height:100%;width:0;background:linear-gradient(90deg,#2b6de0,#7cc0ff);transition:width .12s}
+  .pwtext{color:var(--mut);font-size:12px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Consolas,monospace}
+  .phase{color:var(--acc);font-size:12px;margin:2px 0 6px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+  .chip{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:6px 12px;min-width:104px;text-align:center}
+  .chip .v{font-size:15px;font-weight:700;color:var(--acc)}
+  .chip .k{font-size:11px;color:var(--mut)}
+  .srch input{width:100%;padding:8px 12px;border-radius:9px;border:1px solid var(--bd);background:var(--card);color:var(--fg);font-size:13px;margin:6px 0}
+  .srch input:focus{outline:none;border-color:var(--acc)}
+  details.sec{background:var(--card);border:1px solid var(--bd);border-radius:10px;margin-bottom:9px;overflow:hidden}
+  summary{cursor:pointer;padding:10px 14px;font-weight:600;user-select:none;list-style:none;display:flex;align-items:center;gap:8px}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸";color:var(--mut);transition:transform .15s}
+  details[open] summary::before{transform:rotate(90deg)}
+  summary .t{flex:0 0 auto}
+  summary .note{color:var(--mut);font-weight:400;font-size:11.5px;margin-left:auto}
+  .hbadge{margin-left:auto;font-size:11px;padding:1px 10px;border-radius:99px;font-weight:600;flex:0 0 auto}
+  .ok{background:#15301f;color:var(--ok)}.warn{background:#3a2c12;color:var(--warn)}
+  .onlyA{background:#0f2138;color:var(--acc)}.onlyB{background:#2a1630;color:#c98cf5}.err{background:#3a1216;color:var(--err)}
+  .tblwrap{overflow:auto;max-height:44vh;border-top:1px solid var(--bd)}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{text-align:left;padding:5px 14px;border-bottom:1px solid #20253a;white-space:nowrap}
+  th{position:sticky;top:0;background:#1d2233;color:var(--mut);font-weight:600;font-size:12px;z-index:1}
+  td{font-family:Consolas,monospace;font-size:12.5px}
+  .dim{color:var(--mut)}
+  .b-certain{color:var(--ok);border:1px solid #25603f;background:#10281b;border-radius:6px;padding:0 7px;font-size:11px}
+  .b-guess{color:#c98cf5;border:1px solid #4a2d55;background:#22102b;border-radius:6px;padding:0 7px;font-size:11px}
+  .b-same{color:var(--acc);border:1px solid #27406b;border-radius:6px;padding:0 7px;font-size:11px;margin-left:5px}
+  .b-only{color:var(--mut);border:1px solid var(--bd);border-radius:6px;padding:0 7px;font-size:11px}
+  tr.hide{display:none}
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#1d2233;border:1px solid var(--bd);color:var(--fg);padding:9px 20px;border-radius:99px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:99;max-width:80vw}
+  #toast.show{opacity:1}
+  #noBridge{display:flex;position:fixed;inset:0;background:rgba(8,10,16,.92);z-index:100;align-items:center;justify-content:center;text-align:center;color:var(--fg);font-size:15px;line-height:2}
+  #nbText{max-width:640px;padding:0 20px}
+  #results{display:none}
+</style>
+</head>
+<body>
+<div id="noBridge"><div id="nbText">正在初始化界面组件…</div></div>
+
+<h1>双目录文件比对</h1><span class="shield">⚡ 只读工具 — 不会修改任何文件</span>
+<div class="tagline">按大小分层 + SHA-256/SHA-1 哈希，文件名不同也能找出「谁等于谁」</div>
+
+<div class="dirs">
+  <div class="card" id="cardA" onclick="pick('A')">
+    <div class="lb">目录 A <span class="cnt" id="cntA"></span></div>
+    <div class="pt empty" id="ptA">点击选择文件夹…（可粘贴路径到下方）</div>
+  </div>
+  <div class="card" id="cardB" onclick="pick('B')">
+    <div class="lb">目录 B <span class="cnt" id="cntB"></span></div>
+    <div class="pt empty" id="ptB">点击选择文件夹…（可粘贴路径到下方）</div>
+  </div>
+</div>
+
+<div class="bar">
+  <select id="selAlgo"><option value="sha256">SHA-256</option><option value="sha1">SHA-1</option></select>
+  <label style="font-size:13px"><input type="checkbox" id="chkQuick"> quick 提速</label>
+  <button id="btnStart" onclick="startCmp()" disabled>▶ 开始比对</button>
+  <span id="cancelWrap"><button onclick="cancelCmp()">■ 取消</button></span>
+  <button id="btnCSV" onclick="expCSV()" disabled>导出 CSV</button>
+  <button id="btnHTML" onclick="expHTML()" disabled>导出 HTML 报告</button>
+  <span id="status"></span>
+</div>
+
+<div class="progressWrap" id="pw">
+  <div class="pwbar"><div class="pwfill" id="pwfill"></div></div>
+  <div class="pwtext" id="pwtext"></div>
+</div>
+<div class="phase" id="phase"></div>
+
+<div id="results">
+  <div class="chips" id="chips"></div>
+  <div class="srch"><input id="q" placeholder="🔍 过滤 — 输入文件名任意部分实时筛选下方各表（双击单元格可复制）" autocomplete="off"></div>
+  <div id="secs"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const humanSize = n => { if (n < 1024) return n + " B"; const u=["KB","MB","GB","TB"]; let v=n; for (let i=0;i<u.length;i++){v/=1024; if(v<1024||i===u.length-1) return v.toFixed(v>=10?1:2)+" "+u[i];} };
+let dirA=null, dirB=null, running=false, data=null;
+
+/* 桥就绪检测：pywebview 的 js_api 在页面加载后才注入（晚注入），且 pywebviewready
+ * 事件在部分版本/场景下可能不触发 —— 不依赖事件，轮询 window.pywebview.api。
+ * 就绪即隐藏初始化遮罩；约 10s 仍未就绪才提示不可用（此时通常真在浏览器里打开）。 */
+(function initBridge(){
+  const nb=document.getElementById('noBridge'), txt=document.getElementById('nbText');
+  const nbOk=()=>{ nb.style.display='none'; };
+  let tries=0;
+  function poll(){
+    if (window.pywebview && window.pywebview.api){ nbOk(); return; }
+    if (++tries>=40){ txt.textContent='界面组件初始化超时（约 10s 无响应）。\n请使用 dist\\dircompare_gui.exe 运行，或在浏览器打开 dircompare_web.html。'; return; }
+    setTimeout(poll,250);
+  }
+  window.addEventListener('pywebviewready', nbOk);
+  window.addEventListener('pywebviewerror', ()=>{ txt.textContent='pywebview 初始化出错。请使用 CLI 版或网页版。'; });
+  poll();
+})();
+
+function ready(){ return window.pywebview && window.pywebview.api; }
+
+let toastTimer=null;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'), 3600); }
+
+function setPath(side, p){
+  if (side==='A') dirA=p; else dirB=p;
+  const el=$('#pt'+side), card=$('#card'+side);
+  el.textContent=p||'点击选择文件夹…'; el.classList.toggle('empty',!p);
+  card.classList.toggle('set', !!p);
+  $('.cnt'+side) /* noop */;
+  $('#btnStart').disabled = !(dirA && dirB && !running);
+}
+async function pick(side){
+  if (!ready()) return;
+  const r = await pywebview.api.choose_dir('选择目录 ' + side);
+  if (r && typeof r === 'object' && r.ok === false) { toast(r.msg||'选择失败'); return; }
+  if (r) setPath(side, r);
+}
+
+function setBusy(b){
+  running=b;
+  $('#btnStart').disabled = !(dirA && dirB) || b;
+  $('#cancelWrap').style.display = b ? '' : 'none';
+  if (!b){ $('#btnCSV').disabled = !data; $('#btnHTML').disabled = !data; }
+}
+
+async function startCmp(){
+  if (!ready() || running) return;
+  const r = await pywebview.api.run_compare(dirA, dirB, $('#selAlgo').value, $('#chkQuick').checked);
+  if (r && r.ok === false) { toast(r.msg); return; }
+  data=null; setBusy(true); $('#results').style.display='none';
+  $('#pw').style.display=''; $('#pwfill').style.width='0';
+  $('#phase').textContent=''; $('#status').textContent='比对中…';
+}
+async function cancelCmp(){ if (ready()) await pywebview.api.cancel(); }
+
+function onProgress(done,total,rel){
+  const pct = total>0 ? Math.round(done/total*100) : 0;
+  $('#pwfill').style.width = pct+'%';
+  $('#pwtext').textContent = `哈希计算 ${done}/${total}（${pct}%）${rel?' — '+rel:''}`;
+}
+function onCancelled(){
+  $('#pw').style.display='none'; setBusy(false); $('#status').textContent='已取消';
+  $('#phase').textContent='';
+}
+function onError(msg){ $('#pw').style.display='none'; setBusy(false); $('#status').textContent=''; toast('比对出错：'+msg); }
+function onResult(d){
+  data=d; $('#pw').style.display='none'; setBusy(false);
+  const s=d.stats;
+  $('#status').textContent = `完成 · 相同内容 ${s.nMatchA}↔${s.nMatchB}（${s.nPairs} 对） · 仅A ${s.nOnlyA} · 仅B ${s.nOnlyB}`;
+  $('#results').style.display='';
+  renderChips(s); renderTables(d);
+}
+
+function renderChips(s){
+  const chips=[
+    ['A 文件数', s.nA],['B 文件数', s.nB],
+    ['相同内容文件', s.nMatchA+' ↔ '+s.nMatchB],
+    ['比对对数', s.nPairs+'（确定 '+s.nCertain+' / 推测 '+(s.nPairs-s.nCertain)+'）'],
+    ['A 侧重复占用', humanSize(s.mbA)],['B 侧重复占用', humanSize(s.mbB)],
+    ['仅存在于 A', s.nOnlyA],['仅存在于 B', s.nOnlyB],
+    ['同名不同内容', s.nND],['0 字节', 'A '+s.zA+' / B '+s.zB],['读取失败', s.nErr],
+  ];
+  $('#chips').innerHTML = chips.map(c=>`<div class="chip"><div class="v">${esc(c[1])}</div><div class="k">${esc(c[0])}</div></div>`).join('');
+}
+
+function section(cls,title,badge,body,open,note){
+  return `<details class="sec"${open?' open':''}><summary><span class="t">${esc(title)}</span>`+
+    (note?`<span class="note">${esc(note)}</span>`:'')+
+    `<span class="hbadge ${cls}">${esc(badge)}</span></summary>${body}</details>`;
+}
+function tbl(hdr, rows, emptyCols, emptyTxt){
+  return `<div class="tblwrap"><table><thead><tr>${hdr.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>`+
+    (rows||`<tr><td class="dim" colspan="${emptyCols}">${emptyTxt||'（无）'}</td></tr>`)+`</tbody></table></div>`;
+}
+
+function renderTables(d){
+  const pairRows=d.pairs.map(p=>{
+    if (p.a && p.b){
+      const bd=p.certain?'<span class="b-certain">确定</span>':'<span class="b-guess">推测</span>';
+      const same=p.a.name===p.b.name?'<span class="b-same">同名</span>':'';
+      return `<tr><td>${esc(p.a.rel)}</td><td>${esc(p.b.rel)}</td><td>${humanSize(p.a.size)}</td><td>${bd}${same}</td></tr>`;
+    }
+    if (p.a) return `<tr><td>${esc(p.a.rel)}</td><td class="dim">（B 无对应份）</td><td>${humanSize(p.a.size)}</td><td><span class="b-only">该侧多出</span></td></tr>`;
+    return `<tr><td class="dim">（A 无对应份）</td><td>${esc(p.b.rel)}</td><td>${humanSize(p.b.size)}</td><td><span class="b-only">该侧多出</span></td></tr>`;
+  }).join('');
+  const ndRows=d.names_diff.map(x=>`<tr><td>${esc(x.a.rel)}</td><td>${esc(x.b.rel)}</td><td>${humanSize(x.a.size)}</td><td>${humanSize(x.b.size)}</td></tr>`).join('');
+  const oaRows=d.onlyA.map(r=>`<tr><td>${esc(r.rel)}</td><td>${humanSize(r.size)}</td></tr>`).join('');
+  const obRows=d.onlyB.map(r=>`<tr><td>${esc(r.rel)}</td><td>${humanSize(r.size)}</td></tr>`).join('');
+  const erRows=d.errs.map(r=>`<tr><td>${esc(r.rel)}</td><td>${esc(r.msg)}</td></tr>`).join('');
+  const s=d.stats;
+  $('#secs').innerHTML =
+    section('ok','相同内容匹配（谁等于谁）',s.nPairs,tbl(['目录A 文件','目录B 文件','大小','判定'],pairRows,4),true)+
+    section('warn','⚠ 同名但内容不同（同名 ≠ 同一内容，覆盖前留意）',s.nND,tbl(['目录A 文件','目录B 文件','A 大小','B 大小'],ndRows,4),s.nND>0)+
+    section('onlyA','→ 仅存在于目录 A',s.nOnlyA,tbl(['文件','大小'],oaRows,2),false,'如需合并/清理，这些是 B 侧缺失的候选')+
+    section('onlyB','→ 仅存在于目录 B',s.nOnlyB,tbl(['文件','大小'],obRows,2),false)+
+    section('err','✘ 读取失败',s.nErr,tbl(['文件','错误信息'],erRows,2),false);
+}
+
+$('#q').addEventListener('input', e=>{
+  const t=e.target.value.trim().toLowerCase();
+  document.querySelectorAll('#secs tbody tr').forEach(tr=>{
+    tr.classList.toggle('hide', !!t && !tr.textContent.toLowerCase().includes(t));
+  });
+});
+document.addEventListener('dblclick', e=>{
+  const td=e.target.closest('td'); if(!td) return;
+  navigator.clipboard && navigator.clipboard.writeText(td.textContent.trim()).then(()=>toast('已复制：'+td.textContent.trim().slice(0,60)),()=>{});
+});
+
+async function expCSV(){ if(!ready()) return; const r=await pywebview.api.export_csv(); if(r&&r.ok===false){ if(r.msg) toast(r.msg); } else if(r&&r.msg) toast(r.msg); }
+async function expHTML(){ if(!ready()) return; const r=await pywebview.api.export_html(); if(r&&r.ok===false){ if(r.msg) toast(r.msg); } else if(r&&r.msg) toast(r.msg); }
+
+// 允许直接在卡片内粘贴路径（兼容不想用对话框的场景）
+document.addEventListener('paste', e=>{
+  const txt=(e.clipboardData||window.clipboardData).getData('text').trim();
+  if(!txt || !/^[A-Za-z]:[\\/]/.test(txt)) return;
+  const active=document.activeElement;
+  if(active && (active.tagName==='INPUT'||active.tagName==='TEXTAREA')) return;
+  const rect=document.querySelector('.dirs').getBoundingClientRect();
+  if(e.clientY < rect.top || e.clientY > rect.bottom) return;
+  const half=rect.width/2;
+  setPath(e.clientX-rect.left < half ? 'A':'B', txt);
+});
+</script>
+</body>
+</html>

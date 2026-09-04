@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# PyInstaller 构建产物（发布目录不入库）
+build/
+dist/
+dist_build/
+dist_release/
+*.spec
+
+# 本地私有内容（不入库）
+docs/
+reports/
+*.bak
+
+# 环境与密钥
+.env
+.env.*
+
+# 系统
+Thumbs.db
+Desktop.ini

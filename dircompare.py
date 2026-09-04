@@ -25,8 +25,16 @@ dircompare.py — 双文件夹内容比对工具（SHA1 / SHA256，支持跨文�
     控制台摘要 + 可选自包含交互式 HTML 报告（双击即开，可过滤搜索）
     + 可选 CSV（UTF-8 BOM，Excel 可直接打开）
 """
-import argparse, csv, hashlib, html as H, os, re, sys, time
-from collections import defaultdict
+import argparse, csv, hashlib, html as H, io, json, os, re, sys, time
+from collections import Counter, defaultdict
+
+# 模块级 UTF-8 输出：任何 import 本模块的进程（CLI / GUI / 测试）在
+# cp1252 等非 UTF-8 代码页环境（如 CI runner）打印中文也不会崩。
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 SAMPLE_HEAD = 256 * 1024
 

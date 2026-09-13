@@ -13,6 +13,7 @@
   .dirs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 10px}
   .card{background:var(--card);border:2px dashed #3a4258;border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s;min-height:74px}
   .card:hover{border-color:var(--acc)}
+  .card.drag{border-color:var(--acc);background:#121a2c}
   .card.set{border-style:solid;border-color:#2c5b8f}
   .card .lb{color:var(--acc);font-weight:700;font-size:13px;margin-bottom:4px}
   .card .lb .cnt{color:var(--mut);font-weight:400;font-size:12px;margin-left:6px}
@@ -147,6 +148,26 @@ async function pick(side){
   const r = await pywebview.api.choose_dir('选择目录 ' + side);
   if (r && typeof r === 'object' && r.ok === false) { toast(r.msg||'选择失败'); return; }
   if (r) setPath(side, r);
+}
+
+/* ---- 拖放：由 Python 侧 DOM API 注册并传入路径（WebView2 提供完整路径）。
+   这里只做全局默认行为拦截 + 视觉反馈，绝不把拖入内容交给系统/浏览器打开。 ---- */
+['dragover','drop'].forEach(t => window.addEventListener(t, e => e.preventDefault()));
+['dragenter','dragover'].forEach(t => document.addEventListener(t, e => {
+  const card = e.target && e.target.closest ? e.target.closest('.card') : null;
+  document.querySelectorAll('.card').forEach(c => c.classList.toggle('drag', c === card));
+}));
+document.addEventListener('dragleave', e => {
+  if (!e.relatedTarget) document.querySelectorAll('.card').forEach(c => c.classList.remove('drag'));
+});
+document.addEventListener('drop', () => document.querySelectorAll('.card').forEach(c => c.classList.remove('drag')));
+function onDropPath(side, path){
+  if (!path) return;
+  setPath(side, path);
+  toast('已载入目录 ' + side + '：' + path);
+}
+function onDropNoPath(){
+  toast('未能获取拖入路径（WebView2 限制），请点击卡片选择目录，或直接粘贴路径到窗口');
 }
 
 function setBusy(b){

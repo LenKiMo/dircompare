@@ -25,6 +25,15 @@ def _dlg_const(name, fallback):
         return getattr(webview, fallback)
 
 
+def _dlg_first(result):
+    """对话框返回值在 pywebview 各版本/各对话框中可能是 str / list / tuple，统一取首个路径。"""
+    if not result:
+        return None
+    if isinstance(result, (list, tuple)):
+        return result[0] if result else None
+    return result if isinstance(result, str) else None
+
+
 class BackendAPI:
     def __init__(self):
         self._window = None
@@ -41,7 +50,7 @@ class BackendAPI:
         try:
             result = self._window.create_file_dialog(
                 _dlg_const("FOLDER", "FOLDER_DIALOG"), allow_multiple=False)
-            return result[0] if result else None
+            return _dlg_first(result)
         except Exception as e:
             return {"ok": False, "msg": f"目录选择失败：{e}"}
 
@@ -106,9 +115,10 @@ class BackendAPI:
                 _dlg_const("SAVE", "SAVE_DIALOG"), save_filename="dircompare_pairs.csv")
         except Exception as e:
             return {"ok": False, "msg": f"保存对话框失败：{e}"}
-        if not result:
+        path = _dlg_first(result)
+        if not path:
             return {"ok": False, "msg": ""}  # 用户取消
-        pfx = os.path.splitext(result)[0]
+        pfx = os.path.splitext(path)[0]
         try:
             dircompare.write_csv(pfx, self._result)
             return {"ok": True, "msg": f"已导出 4 个文件：{pfx}_pairs.csv 等"}
@@ -123,14 +133,71 @@ class BackendAPI:
                 _dlg_const("SAVE", "SAVE_DIALOG"), save_filename="比对报告.html")
         except Exception as e:
             return {"ok": False, "msg": f"保存对话框失败：{e}"}
-        if not result:
+        path = _dlg_first(result)
+        if not path:
             return {"ok": False, "msg": ""}
+        if not os.path.splitext(path)[1]:
+            path += ".html"
         try:
-            with open(result, "w", encoding="utf-8") as f:
+            with open(path, "w", encoding="utf-8") as f:
                 f.write(dircompare.render_html(self._result, self._result_algo))
-            return {"ok": True, "msg": f"已导出：{result}"}
+            return {"ok": True, "msg": f"已导出：{path}"}
         except Exception as e:
             return {"ok": False, "msg": f"导出失败：{e}"}
+
+
+def _setup_drag_drop(window):
+    """给两张目录卡片注册拖放：阻止 WebView2 默认行为（否则拖入会被系统/Edge 打开），
+    并接收拖入路径（WebView2 提供完整路径；拖入文件时取其所在目录）。
+    DOM API 需在页面 loaded 后注册，故放独立线程等待。"""
+    notes = []
+
+    def worker():
+        try:
+            window.events.loaded.wait()
+            notes.append("loaded-ok")
+            from webview.dom import DOMEventHandler
+            for side, sel in (("A", "#cardA"), ("B", "#cardB")):
+                el = window.dom.get_element(sel)
+                notes.append(f"{sel}:{'found' if el is not None else 'MISS'}")
+                if el is None:
+                    continue
+
+                def on_drop(e, _side=side):
+                    try:
+                        files = (e.get("dataTransfer") or {}).get("files") or []
+                        path = None
+                        for f in files:
+                            p = f.get("pywebviewFullPath") or f.get("path")
+                            if p:
+                                path = p
+                                break
+                        if path and not os.path.isdir(path):
+                            path = os.path.dirname(path)  # 拖入文件 → 用其所在目录
+                        if path:
+                            window.evaluate_js("onDropPath(%s, %s)" % (
+                                json.dumps(_side), json.dumps(path, ensure_ascii=False)))
+                        else:
+                            window.evaluate_js("onDropNoPath()")
+                    except Exception:
+                        pass
+
+                el.on("dragover", DOMEventHandler(lambda e: None, prevent_default=True))
+                el.on("drop", DOMEventHandler(on_drop, prevent_default=True,
+                                               stop_propagation=True))
+                notes.append(f"{sel}:registered")
+        except Exception as e:
+            notes.append("ERR " + repr(e)[:200])
+        if os.environ.get("DIRC_TRACE"):
+            try:
+                import tempfile
+                with open(os.path.join(tempfile.gettempdir(), "dirc_dnd.txt"),
+                          "w", encoding="utf-8") as f:
+                    f.write("\n".join(notes))
+            except Exception:
+                pass
+
+    threading.Thread(target=worker, daemon=True).start()
 
 
 def get_html_path():
@@ -215,6 +282,7 @@ def main():
         message_box("启动失败", f"无法创建窗口（可能缺少 WebView2 运行时）：\n{e}")
         sys.exit(1)
     api.set_window(window)
+    _setup_drag_drop(window)
 
     if os.environ.get("DIRC_TRACE"):
         def tracer():

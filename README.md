@@ -63,8 +63,8 @@ WebView 版观感现代细腻（WebView2 渲染，Win11 自带）；Tk 版零运
 以两个真实目录为例（示例路径，请替换为你的目录）：
 
 ```bat
-:: 命令行版
-dircompare.exe "D:\我的图集A\套图一" "D:\我的图集B\合集解压\套图一" --html 报告.html --open
+:: 命令行版（示例路径，请替换为你的目录）
+dircompare.exe "目录A\套图一" "目录B\合集解压\套图一" --html 报告.html --open
 
 :: GUI 版：双击 exe → 点选/拖入两个目录 → 「开始比对」
 ```
@@ -121,6 +121,8 @@ python scripts/build_release.py --version 0.1.0
   带/不带进度回调的结果逐字段一致（边界夹具：重命名、同名不同内容、同大小不同内容、大文件、0 字节等）。
 - CLI、WebView、Tk 三份代码各有 `--selftest` 无窗口自检（写入 `%TEMP%` 供 CI 断言）。
 - 网页版 JS 引擎与 Python 内核逻辑一一对应，由同一夹具互验。
+- `scripts/check_privacy.py`：仓库隐私门禁，扫描跟踪文件中是否残留本机绝对路径
+  （CI 自动执行；本地可用 `git config core.hooksPath scripts/hooks` 启用 pre-commit 钩子）。
 
 ## 🔒 隐私与安全
 

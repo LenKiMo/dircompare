@@ -1,0 +1,8 @@
+#!/bin/sh
+# 本地 pre-commit 钩子：提交前扫描暂存区是否含本机路径等隐私痕迹。
+# 启用方式（仓库根目录执行一次）：
+#   git config core.hooksPath scripts/hooks
+python scripts/check_privacy.py --staged || {
+    echo "提交被拦截：请先处理上述隐私痕迹（或临时用 git commit --no-verify 跳过）。"
+    exit 1
+}
